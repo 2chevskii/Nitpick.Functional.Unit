@@ -42,6 +42,12 @@ unit/
 - `UnitExtensions.cs` holds all extension methods (Action adapters + Task helpers).
 - Comparer types each implement only the interface they advertise; `UnitComparer` implements both `IComparer<Unit>` and `IEqualityComparer<Unit>`.
 
+## Formatting Policy
+
+- Agents MUST use the `format` skill after introducing any changes to files with these extensions: `.cs`, `.csproj`, `.props`, `.targets`, `.sln`, `.slnx`.
+- This rule is mandatory and applies to every turn where any of the listed file types are edited.
+- Preferred command via the `format` skill: `dotnet csharpier format <changed-paths>` (or `dotnet csharpier format .` when needed).
+
 ## Testing
 
 - Framework: xUnit v3 with the MTP v2 runner.

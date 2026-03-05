@@ -12,3 +12,7 @@ This repository uses a standardized `.agents` directory for all agent-facing con
 ## Source of Truth
 
 For agent workflow and automation, `.agents/*` is canonical.
+
+## Mandatory Formatting Rule
+
+- Codex agents MUST use the `format` skill after introducing any changes to `.cs`, `.csproj`, `.props`, `.targets`, `.sln`, or `.slnx` files.

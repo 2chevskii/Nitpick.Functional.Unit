@@ -113,11 +113,7 @@ public class UnitJsonConverterTests
     public void Serialize_Dictionary_WritesNullLiterals()
     {
         var json = JsonSerializer.Serialize(
-            new Dictionary<string, Unit>
-            {
-                ["first"] = Unit.Value,
-                ["second"] = Unit.Value,
-            },
+            new Dictionary<string, Unit> { ["first"] = Unit.Value, ["second"] = Unit.Value },
             Options
         );
 

@@ -62,6 +62,112 @@ public class UnitJsonConverterTests
         Assert.Equal(Unit.Value, result.Value);
     }
 
+    [Fact]
+    public void Serialize_Collection_WritesNullLiterals()
+    {
+        var json = JsonConvert.SerializeObject(new[] { Unit.Value, Unit.Value }, Settings);
+
+        Assert.Equal("[null,null]", json);
+    }
+
+    [Fact]
+    public void Deserialize_Collection_NullLiterals_ReturnsUnitValues()
+    {
+        var result = JsonConvert.DeserializeObject<Unit[]>("[null,null]", Settings);
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Length);
+        Assert.All(result, value => Assert.Equal(Unit.Value, value));
+    }
+
+    [Fact]
+    public void Serialize_ClassCollectionProperty_WritesNullLiterals()
+    {
+        var json = JsonConvert.SerializeObject(
+            new CollectionPropertyContainer
+            {
+                Values = new List<Unit> { Unit.Value, Unit.Value },
+            },
+            Settings
+        );
+
+        Assert.Equal(@"{""Values"":[null,null]}", json);
+    }
+
+    [Fact]
+    public void Deserialize_ClassCollectionProperty_NullLiterals_ReturnsUnitValues()
+    {
+        var result = JsonConvert.DeserializeObject<CollectionPropertyContainer>(
+            @"{""Values"":[null,null]}",
+            Settings
+        );
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Values.Count);
+        Assert.All(result.Values, value => Assert.Equal(Unit.Value, value));
+    }
+
+    [Fact]
+    public void Serialize_Dictionary_WritesNullLiterals()
+    {
+        var json = JsonConvert.SerializeObject(
+            new Dictionary<string, Unit>
+            {
+                ["first"] = Unit.Value,
+                ["second"] = Unit.Value,
+            },
+            Settings
+        );
+
+        Assert.Equal(@"{""first"":null,""second"":null}", json);
+    }
+
+    [Fact]
+    public void Deserialize_Dictionary_NullLiterals_ReturnsUnitValues()
+    {
+        var result = JsonConvert.DeserializeObject<Dictionary<string, Unit>>(
+            @"{""first"":null,""second"":null}",
+            Settings
+        );
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Count);
+        Assert.Equal(Unit.Value, result["first"]);
+        Assert.Equal(Unit.Value, result["second"]);
+    }
+
+    [Fact]
+    public void Serialize_ClassDictionaryProperty_WritesNullLiterals()
+    {
+        var json = JsonConvert.SerializeObject(
+            new DictionaryPropertyContainer
+            {
+                Values = new Dictionary<string, Unit>
+                {
+                    ["first"] = Unit.Value,
+                    ["second"] = Unit.Value,
+                },
+            },
+            Settings
+        );
+
+        Assert.Equal(@"{""Values"":{""first"":null,""second"":null}}", json);
+    }
+
+    [Fact]
+    public void Deserialize_ClassDictionaryProperty_NullLiterals_ReturnsUnitValues()
+    {
+        var result = JsonConvert.DeserializeObject<DictionaryPropertyContainer>(
+            @"{""Values"":{""first"":null,""second"":null}}",
+            Settings
+        );
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Values.Count);
+        Assert.Equal(Unit.Value, result.Values["first"]);
+        Assert.Equal(Unit.Value, result.Values["second"]);
+    }
+
     [Theory]
     [InlineData("1", "Integer")]
     [InlineData("\"x\"", "String")]
@@ -105,5 +211,15 @@ public class UnitJsonConverterTests
     private sealed class FieldContainer
     {
         public Unit Value = Unit.Value;
+    }
+
+    private sealed class CollectionPropertyContainer
+    {
+        public List<Unit> Values { get; init; } = new();
+    }
+
+    private sealed class DictionaryPropertyContainer
+    {
+        public Dictionary<string, Unit> Values { get; init; } = new();
     }
 }

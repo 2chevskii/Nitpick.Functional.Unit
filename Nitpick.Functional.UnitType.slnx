@@ -1,0 +1,30 @@
+<Solution>
+  <Folder Name="/ci/">
+    <File Path=".github/workflows/finish_release.yaml" />
+    <File Path=".github/workflows/main.yaml" />
+    <File Path=".github/workflows/start_release.yaml" />
+  </Folder>
+  <Folder Name="/common/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+  </Folder>
+  <Folder Name="/misc/">
+    <File Path=".editorconfig" />
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="AGENTS.md" />
+    <File Path="CLAUDE.md" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Nitpick.Functional.UnitType.NewtonsoftJson/Nitpick.Functional.UnitType.NewtonsoftJson.csproj" />
+    <Project Path="src/Nitpick.Functional.UnitType.SystemTextJson/Nitpick.Functional.UnitType.SystemTextJson.csproj" />
+    <Project Path="src/Nitpick.Functional.UnitType/Nitpick.Functional.UnitType.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Nitpick.Functional.UnitType.NewtonsoftJson.Tests/Nitpick.Functional.UnitType.NewtonsoftJson.Tests.csproj" />
+    <Project Path="tests/Nitpick.Functional.UnitType.SystemTextJson.Tests/Nitpick.Functional.UnitType.SystemTextJson.Tests.csproj" />
+    <Project Path="tests/Nitpick.Functional.UnitType.Tests/Nitpick.Functional.UnitType.Tests.csproj" />
+  </Folder>
+</Solution>

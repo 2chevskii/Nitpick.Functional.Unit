@@ -1,0 +1,356 @@
+name: "CI"
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  format:
+    name: "Format Check"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Cache NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'Directory.Build.props', 'Version.props', 'global.json', '.config/dotnet-tools.json') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+      - name: Restore tools
+        run: dotnet tool restore
+      - name: CSharpier check
+        run: dotnet csharpier check .
+
+  build:
+    name: "Build and Pack"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Cache NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'Directory.Build.props', 'Version.props', 'global.json') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+      - name: Restore
+        run: dotnet restore
+      - name: Build solution
+        run: dotnet build --no-restore --configuration Release Nitpick.Functional.UnitType.slnx
+      - name: Publish Nitpick.Functional.UnitType.Tests
+        run: >-
+          dotnet publish
+          --no-restore
+          --no-build
+          --configuration Release
+          --output artifacts/tests/Nitpick.Functional.UnitType.Tests
+          tests/Nitpick.Functional.UnitType.Tests/Nitpick.Functional.UnitType.Tests.csproj
+      - name: Upload Nitpick.Functional.UnitType.Tests
+        uses: actions/upload-artifact@v6
+        with:
+          path: artifacts/tests/Nitpick.Functional.UnitType.Tests
+          name: build-Nitpick.Functional.UnitType.Tests
+      - name: Publish Nitpick.Functional.UnitType.SystemTextJson.Tests
+        run: >-
+          dotnet publish
+          --no-restore
+          --no-build
+          --configuration Release
+          --output artifacts/tests/Nitpick.Functional.UnitType.SystemTextJson.Tests
+          tests/Nitpick.Functional.UnitType.SystemTextJson.Tests/Nitpick.Functional.UnitType.SystemTextJson.Tests.csproj
+      - name: Upload Nitpick.Functional.UnitType.SystemTextJson.Tests
+        uses: actions/upload-artifact@v6
+        with:
+          path: artifacts/tests/Nitpick.Functional.UnitType.SystemTextJson.Tests
+          name: build-Nitpick.Functional.UnitType.SystemTextJson.Tests
+      - name: Publish Nitpick.Functional.UnitType.NewtonsoftJson.Tests
+        run: >-
+          dotnet publish
+          --no-restore
+          --no-build
+          --configuration Release
+          --output artifacts/tests/Nitpick.Functional.UnitType.NewtonsoftJson.Tests
+          tests/Nitpick.Functional.UnitType.NewtonsoftJson.Tests/Nitpick.Functional.UnitType.NewtonsoftJson.Tests.csproj
+      - name: Upload Nitpick.Functional.UnitType.NewtonsoftJson.Tests
+        uses: actions/upload-artifact@v6
+        with:
+          path: artifacts/tests/Nitpick.Functional.UnitType.NewtonsoftJson.Tests
+          name: build-Nitpick.Functional.UnitType.NewtonsoftJson.Tests
+      - name: Pack Nitpick.Functional.UnitType
+        run: >-
+          dotnet pack
+          --no-restore
+          --no-build
+          --configuration Release
+          --output artifacts/packages
+          -p:IncludeSymbols=true
+          -p:SymbolPackageFormat=snupkg
+          src/Nitpick.Functional.UnitType/Nitpick.Functional.UnitType.csproj
+      - name: Pack Nitpick.Functional.UnitType.SystemTextJson
+        run: >-
+          dotnet pack
+          --no-restore
+          --no-build
+          --configuration Release
+          --output artifacts/packages
+          -p:IncludeSymbols=true
+          -p:SymbolPackageFormat=snupkg
+          src/Nitpick.Functional.UnitType.SystemTextJson/Nitpick.Functional.UnitType.SystemTextJson.csproj
+      - name: Pack Nitpick.Functional.UnitType.NewtonsoftJson
+        run: >-
+          dotnet pack
+          --no-restore
+          --no-build
+          --configuration Release
+          --output artifacts/packages
+          -p:IncludeSymbols=true
+          -p:SymbolPackageFormat=snupkg
+          src/Nitpick.Functional.UnitType.NewtonsoftJson/Nitpick.Functional.UnitType.NewtonsoftJson.csproj
+      - name: Upload release packages
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-packages
+          path: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg
+
+  test:
+    name: "Test Matrix"
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      actions: read
+      contents: read
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        test-project:
+          - Nitpick.Functional.UnitType.Tests
+          - Nitpick.Functional.UnitType.SystemTextJson.Tests
+          - Nitpick.Functional.UnitType.NewtonsoftJson.Tests
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: build-${{ matrix.test-project }}
+          path: tests/${{ matrix.test-project }}
+      - name: Ensure executable
+        run: chmod +x tests/${{ matrix.test-project }}/${{ matrix.test-project }}
+      - name: Run tests
+        run: >-
+          ./tests/${{ matrix.test-project }}/${{ matrix.test-project }}
+          --output Detailed
+          --results-directory test_results/${{ matrix.test-project }}
+          --report-ctrf
+          --report-ctrf-filename report.json
+          --report-xunit-html
+          --report-xunit-html-filename report.html
+      - name: Upload CTRF report
+        uses: actions/upload-artifact@v6
+        with:
+          path: test_results/${{ matrix.test-project }}/report.json
+          name: test-results-ctrf-${{ matrix.test-project }}
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v6
+        with:
+          path: test_results/${{ matrix.test-project }}/report.html
+          name: test-results-html-${{ matrix.test-project }}
+      - name: Publish test summary
+        uses: ctrf-io/github-test-reporter@v1
+        with:
+          report-path: test_results/${{ matrix.test-project }}/report.json
+          artifact-name: test-results-ctrf-${{ matrix.test-project }}
+          fetch-previous-results: true
+          upload-artifact: false
+          github-report: true
+          summary: true
+          summary-report: true
+
+  coverage:
+    name: "Coverage"
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Cache NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'Directory.Build.props', 'Version.props', 'global.json') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+      - name: Install dotnet-coverage
+        run: dotnet tool install --global --verbosity normal dotnet-coverage
+      - name: Install ReportGenerator
+        run: dotnet tool install --global --verbosity normal dotnet-reportgenerator-globaltool
+      - name: Add global tools to PATH
+        run: echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+      - name: Download Nitpick.Functional.UnitType.Tests
+        uses: actions/download-artifact@v7
+        with:
+          path: tests/Nitpick.Functional.UnitType.Tests
+          name: build-Nitpick.Functional.UnitType.Tests
+      - name: Download Nitpick.Functional.UnitType.SystemTextJson.Tests
+        uses: actions/download-artifact@v7
+        with:
+          path: tests/Nitpick.Functional.UnitType.SystemTextJson.Tests
+          name: build-Nitpick.Functional.UnitType.SystemTextJson.Tests
+      - name: Download Nitpick.Functional.UnitType.NewtonsoftJson.Tests
+        uses: actions/download-artifact@v7
+        with:
+          path: tests/Nitpick.Functional.UnitType.NewtonsoftJson.Tests
+          name: build-Nitpick.Functional.UnitType.NewtonsoftJson.Tests
+      - name: Ensure executables
+        run: >-
+          chmod +x
+          tests/Nitpick.Functional.UnitType.Tests/Nitpick.Functional.UnitType.Tests
+          tests/Nitpick.Functional.UnitType.SystemTextJson.Tests/Nitpick.Functional.UnitType.SystemTextJson.Tests
+          tests/Nitpick.Functional.UnitType.NewtonsoftJson.Tests/Nitpick.Functional.UnitType.NewtonsoftJson.Tests
+      - name: Collect Nitpick.Functional.UnitType.Tests coverage
+        run: >-
+          dotnet coverage collect
+          --output coverage/Nitpick.Functional.UnitType.Tests.cobertura.xml
+          --output-format cobertura
+          --log-level Verbose
+          "tests/Nitpick.Functional.UnitType.Tests/Nitpick.Functional.UnitType.Tests"
+      - name: Collect Nitpick.Functional.UnitType.SystemTextJson.Tests coverage
+        run: >-
+          dotnet coverage collect
+          --output coverage/Nitpick.Functional.UnitType.SystemTextJson.Tests.cobertura.xml
+          --output-format cobertura
+          --log-level Verbose
+          "tests/Nitpick.Functional.UnitType.SystemTextJson.Tests/Nitpick.Functional.UnitType.SystemTextJson.Tests"
+      - name: Collect Nitpick.Functional.UnitType.NewtonsoftJson.Tests coverage
+        run: >-
+          dotnet coverage collect
+          --output coverage/Nitpick.Functional.UnitType.NewtonsoftJson.Tests.cobertura.xml
+          --output-format cobertura
+          --log-level Verbose
+          "tests/Nitpick.Functional.UnitType.NewtonsoftJson.Tests/Nitpick.Functional.UnitType.NewtonsoftJson.Tests"
+      - name: Upload Cobertura coverage files
+        uses: actions/upload-artifact@v6
+        with:
+          path: coverage/*.cobertura.xml
+          name: coverage-cobertura
+      - name: Generate HTML coverage report
+        run: >-
+          reportgenerator
+          "-reports:coverage/Nitpick.Functional.UnitType.Tests.cobertura.xml;coverage/Nitpick.Functional.UnitType.SystemTextJson.Tests.cobertura.xml;coverage/Nitpick.Functional.UnitType.NewtonsoftJson.Tests.cobertura.xml"
+          -targetdir:coverage/html-report
+          -reporttypes:Html
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v6
+        with:
+          path: coverage/html-report
+          name: coverage-html-combined
+      - name: Generate JSON summary
+        run: >-
+          reportgenerator
+          "-reports:coverage/Nitpick.Functional.UnitType.Tests.cobertura.xml;coverage/Nitpick.Functional.UnitType.SystemTextJson.Tests.cobertura.xml;coverage/Nitpick.Functional.UnitType.NewtonsoftJson.Tests.cobertura.xml"
+          -targetdir:coverage/json-summary
+          -reporttypes:JsonSummary
+      - name: Generate Markdown summary
+        run: >-
+          reportgenerator
+          "-reports:coverage/Nitpick.Functional.UnitType.Tests.cobertura.xml;coverage/Nitpick.Functional.UnitType.SystemTextJson.Tests.cobertura.xml;coverage/Nitpick.Functional.UnitType.NewtonsoftJson.Tests.cobertura.xml"
+          -targetdir:coverage/markdown-summary
+          -reporttypes:MarkdownSummaryGithub
+      - name: Append summary to job
+        run: |
+          set -euo pipefail
+          if [ -f coverage/markdown-summary/SummaryGithub.md ]; then
+            SUMMARY_MD=coverage/markdown-summary/SummaryGithub.md
+          elif [ -f coverage/markdown-summary/summarygithub.md ]; then
+            SUMMARY_MD=coverage/markdown-summary/summarygithub.md
+          elif [ -f coverage/markdown-summary/summary.md ]; then
+            SUMMARY_MD=coverage/markdown-summary/summary.md
+          else
+            echo "Markdown summary not found in coverage/markdown-summary"
+            ls coverage/markdown-summary
+            exit 1
+          fi
+
+          {
+            echo "## Combined Coverage Summary"
+            cat "$SUMMARY_MD"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Enforce coverage thresholds
+        run: |
+          set -euo pipefail
+          if [ -f coverage/json-summary/Summary.json ]; then
+            SUMMARY_PATH=coverage/json-summary/Summary.json
+          elif [ -f coverage/json-summary/summary.json ]; then
+            SUMMARY_PATH=coverage/json-summary/summary.json
+          else
+            echo "Coverage summary JSON not found in coverage/json-summary"
+            ls coverage/json-summary
+            exit 1
+          fi
+
+          export SUMMARY_PATH
+          python3 - <<'PY'
+          import json, os, sys
+
+          def coerce_num(val):
+            try:
+              return float(val)
+            except (TypeError, ValueError):
+              return None
+
+          def pick(obj, *keys):
+            for key in keys:
+              if isinstance(obj, dict) and key in obj:
+                num = coerce_num(obj[key])
+                if num is not None:
+                  return num
+            return None
+
+          path = os.environ["SUMMARY_PATH"]
+          with open(path) as f:
+            data = json.load(f)
+
+          summary = data.get("summary") if isinstance(data, dict) else None
+          if not summary and isinstance(data, dict):
+            summary = data
+
+          line = branch = None
+          line = pick(summary, "linecoverage", "lineCoverage", "line_coverage", "LineCoverage")
+          branch = pick(summary, "branchcoverage", "branchCoverage", "branch_coverage", "BranchCoverage")
+
+          if line is None and isinstance(summary, dict):
+            covered = pick(summary, "coveredlines", "coveredLines")
+            coverable = pick(summary, "coverablelines", "coverableLines")
+            if covered is not None and coverable not in (None, 0):
+              line = covered / coverable * 100
+
+          if branch is None and isinstance(summary, dict):
+            covered = pick(summary, "coveredbranches", "coveredBranches")
+            total = pick(summary, "totalbranches", "totalBranches")
+            if covered is not None and total is not None:
+              branch = 100.0 if total == 0 else covered / total * 100
+
+          if line is None or branch is None:
+            sys.exit("Coverage metrics missing in summary JSON")
+
+          print(f"Line coverage: {line:.2f}%")
+          print(f"Branch coverage: {branch:.2f}%")
+
+          failures = []
+          if line < 80:
+            failures.append(f"Line coverage {line:.2f}% is below required 80%")
+          if branch < 70:
+            failures.append(f"Branch coverage {branch:.2f}% is below required 70%")
+
+          if failures:
+            for msg in failures:
+              print(msg)
+            sys.exit(1)
+          PY

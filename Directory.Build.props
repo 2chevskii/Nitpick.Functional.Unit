@@ -1,0 +1,11 @@
+<Project>
+  <Import Project="Version.props" Condition="Exists('Version.props')" />
+
+  <PropertyGroup>
+    <RootNamespace>Nitpick.Functional</RootNamespace>
+    <Authors>2chevskii</Authors>
+    <RepositoryUrl>https://github.com/2chevskii/unit</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Description>Functional Unit type for C# and JSON converters.</Description>
+  </PropertyGroup>
+</Project>

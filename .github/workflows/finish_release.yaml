@@ -1,0 +1,43 @@
+name: "Finish Release"
+
+on:
+  release:
+    types:
+      - published
+
+concurrency:
+  group: release-finish-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish_packages:
+    name: "Publish Packages"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p artifacts/packages
+          gh release download "${{ github.event.release.tag_name }}" \
+            --pattern "*.nupkg" \
+            --pattern "*.snupkg" \
+            --dir artifacts/packages
+      - name: Push to NuGet.org
+        run: |
+          dotnet nuget push "artifacts/packages/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key "$NUGET_API_KEY" --skip-duplicate
+          dotnet nuget push "artifacts/packages/*.snupkg" --source https://api.nuget.org/v3/index.json --api-key "$NUGET_API_KEY" --skip-duplicate
+      - name: Push to GitHub Packages
+        run: |
+          dotnet nuget push "artifacts/packages/*.nupkg" --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" --api-key "$GITHUB_TOKEN" --skip-duplicate
+          dotnet nuget push "artifacts/packages/*.snupkg" --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" --api-key "$GITHUB_TOKEN" --skip-duplicate

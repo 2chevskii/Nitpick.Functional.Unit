@@ -1,129 +1,107 @@
 # Unit
 
-A minimal C# library providing the `Unit` type — the C# equivalent of Rust's `()`.
+`Unit` for C# (`Nitpick.Functional.UnitType`) plus optional JSON converters.
 
-`Unit` is a `readonly struct` with exactly one possible value. It exists to fill the semantic hole left by `void`: unlike `void`, `Unit` is a real type that can be used as a generic type argument, stored in variables, and returned from functions.
+This repository contains three libraries:
 
----
+- `Nitpick.Functional.UnitType`: core `Unit` type
+- `Nitpick.Functional.UnitType.SystemTextJson`: `System.Text.Json` converter for `Unit`
+- `Nitpick.Functional.UnitType.NewtonsoftJson`: `Newtonsoft.Json` converter for `Unit`
 
-## Installation
+## Packages
 
+```bash
+dotnet add package Nitpick.Functional.UnitType
+dotnet add package Nitpick.Functional.UnitType.SystemTextJson
+dotnet add package Nitpick.Functional.UnitType.NewtonsoftJson
 ```
-dotnet add package <package-id>
-```
 
-> Package ID TBD.
+Install only the converter package you need for your serializer.
 
----
-
-## Agent Setup
-
-This repository uses a standardized Codex agent layout:
-
-- `AGENTS.md` as the root entrypoint
-- `.agents/README.md` for agent configuration overview
-- `.agents/PROJECT.md` for project-specific agent guidance
-- `.agents/skills/*/SKILL.md` for reusable agent skills
-
----
-
-## At a Glance
-
-### Core type
+## Core usage
 
 ```csharp
-using Unit;
+using Nitpick.Functional;
 
-// The one and only value
 Unit value = Unit.Value;
-
-// Prints "()"
-Console.WriteLine(Unit.Value);
-
-// All Unit values are equal
-Assert.Equal(Unit.Value, Unit.Value);
-
-// Implicit conversion from ValueTuple — mirrors Rust's ()
 Unit fromTuple = default(ValueTuple);
+ValueTuple tuple = Unit.Value;
+
+Console.WriteLine(Unit.Value); // ()
 ```
 
-### Void → Func adapters
+`Unit` is a `readonly struct` with a single logical value and implements:
 
-Turn any `Action` into a `Func<…, Unit>` so it fits into generic pipelines that expect a return value.
+- `IEquatable<Unit>`
+- `IComparable<Unit>`
 
-```csharp
-Action<string> log = msg => Console.WriteLine(msg);
-Func<string, Unit> logFunc = log.ToFunc();
+## JSON converters
 
-// Now usable wherever Func<string, Unit> is required
-Unit result = logFunc("hello");
-```
+Both converters serialize `Unit` as JSON `null` and accept only JSON `null` when deserializing.
 
-### Task helpers
-
-Normalize async APIs that return `Task` (non-generic) into `Task<Unit>`.
+### System.Text.Json
 
 ```csharp
-Task SaveAsync() => File.WriteAllTextAsync("out.txt", "data");
+using Nitpick.Functional;
+using System.Text.Json;
 
-Task<Unit> normalized = SaveAsync().AsUnit();
-
-// Discard the result of Task<T>
-Task<int> computeAsync = Task.FromResult(42);
-Task<Unit> discarded = computeAsync.AsUnit();
-```
-
-### JSON serialization
-
-#### System.Text.Json
-
-`Unit` serializes to and from JSON `null`.
-
-```csharp
 var options = new JsonSerializerOptions();
-options.Converters.Add(new UnitJsonConverter());
+options.Converters.Add(UnitJsonConverter.Instance);
 
 string json = JsonSerializer.Serialize(Unit.Value, options); // "null"
-Unit back = JsonSerializer.Deserialize<Unit>(json, options); // Unit.Value
+Unit unit = JsonSerializer.Deserialize<Unit>("null", options);
 ```
 
-#### Newtonsoft.Json
+### Newtonsoft.Json
 
 ```csharp
+using Nitpick.Functional;
+using Newtonsoft.Json;
+
 var settings = new JsonSerializerSettings();
-settings.Converters.Add(new UnitNewtonsoftConverter());
+settings.Converters.Add(new UnitJsonConverter());
 
 string json = JsonConvert.SerializeObject(Unit.Value, settings); // "null"
-Unit back = JsonConvert.DeserializeObject<Unit>(json, settings); // Unit.Value
+Unit unit = JsonConvert.DeserializeObject<Unit>("null", settings);
 ```
 
-### Comparers
+## Repository layout
 
-```csharp
-var dict = new Dictionary<Unit, string>(UnitEqualityComparer.Instance);
-dict[Unit.Value] = "only entry";
+- `src/Nitpick.Functional.UnitType`
+- `src/Nitpick.Functional.UnitType.SystemTextJson`
+- `src/Nitpick.Functional.UnitType.NewtonsoftJson`
+- `tests/Nitpick.Functional.UnitType.Tests`
+- `tests/Nitpick.Functional.UnitType.SystemTextJson.Tests`
+- `tests/Nitpick.Functional.UnitType.NewtonsoftJson.Tests`
 
-var sorted = new SortedSet<Unit>(UnitComparer.Instance);
+## Development
+
+Prerequisite: .NET SDK `10.0.100` (see `global.json`).
+
+```bash
+dotnet restore
+dotnet build Nitpick.Functional.UnitType.slnx
+dotnet test Nitpick.Functional.UnitType.slnx
 ```
 
----
+Formatting:
 
-## Why Unit?
+```bash
+dotnet tool restore
+dotnet csharpier check .
+dotnet csharpier format .
+```
 
-| Scenario | Without Unit | With Unit |
-|---|---|---|
-| Generic command handler | `IHandler<TCommand, object>` (lies about the return type) | `IHandler<TCommand, Unit>` |
-| Functional pipeline | Can't mix `Action` and `Func` | `.ToFunc()` bridges the gap |
-| `Task` normalization | `Task` and `Task<T>` are incompatible in generic code | `.AsUnit()` unifies them |
-| Discriminated union member | No clean representation of "no data" | `Unit` is the conventional choice |
+## Release
 
----
+Version is defined in `Version.props`.
 
-## Target Framework
+CI release flow:
 
-`netstandard2.0` — compatible with .NET Framework 4.6.1+, .NET Core 2.0+, .NET 5+.
-
----
+1. Set `<Version>` in `Version.props`.
+2. Create and push tag `v<Version>` (for example: `v1.2.0`).
+3. Publish a GitHub release for that tag.
+4. `finish_release` workflow publishes packages to NuGet.org and GitHub Packages.
 
 ## License
 
